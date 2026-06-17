@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portaria — Controle de Acesso</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #3b82f6;
+    --accent-glow: #3b82f630;
+    --green: #10b981;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --font: 'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  /* --- Layout --- */
+  .nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-logo { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+  .nav-logo span { color: var(--accent); }
+  .nav-links { display: flex; gap: 0.25rem; margin-left: auto; }
+  .nav-links a {
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.15s;
+  }
+  .nav-links a:hover, .nav-links a.active { background: var(--surface2); color: var(--text); }
+
+  .main { padding: 1.5rem 1rem; max-width: 1200px; margin: 0 auto; }
+
+  /* --- Stats --- */
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+  @media (min-width: 640px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+  }
+  .stat-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.35rem; }
+  .stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1; }
+  .stat-card.veiculos .stat-value { color: var(--accent); }
+  .stat-card.moradores .stat-value { color: var(--green); }
+  .stat-card.acessos .stat-value { color: var(--text); }
+  .stat-card.negados .stat-value { color: var(--red); }
+
+  /* --- Live Feed --- */
+  .section-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .dot-live {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+    animation: pulse 1.4s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .cameras-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  @media (min-width: 768px) { .cameras-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1024px) { .cameras-grid { grid-template-columns: repeat(3, 1fr); } }
+
+  .cam-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .cam-feed {
+    width: 100%;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    background: #000;
+    display: block;
+  }
+  .cam-inactive {
+    width: 100%;
+    aspect-ratio: 16/9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #060a12;
+    color: var(--muted);
+    font-size: 0.8rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .cam-icon { font-size: 2rem; opacity: 0.3; }
+  .cam-footer {
+    padding: 0.6rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .cam-name { font-size: 0.8rem; font-weight: 600; }
+  .cam-status { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 99px; }
+  .cam-status.on { background: #10b98120; color: var(--green); }
+  .cam-status.off { background: #ef444420; color: var(--red); }
+  .cam-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .cam-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* --- Eventos recentes --- */
+  .events-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .event-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: border-color 0.2s;
+  }
+  .event-item.new { border-color: var(--accent); animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+  .event-badge {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .event-badge.ok { background: #10b98118; }
+  .event-badge.nok { background: #ef444418; }
+
+  .event-info { flex: 1; min-width: 0; }
+  .event-placa { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.05em; }
+  .event-sub { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .event-time { font-size: 0.7rem; color: var(--muted); flex-shrink: 0; }
+
+  /* --- Status WS --- */
+  #ws-status {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 99px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  #ws-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+  #ws-dot.connected { background: var(--green); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-logo">🏢 <span>Portaria</span></span>
+  <div class="nav-links">
+    <a href="/" class="active">Dashboard</a>
+    <a href="/cameras">Câmeras</a>
+    <a href="/veiculos">Veículos</a>
+    <a href="/acessos">Acessos</a>
+  </div>
+</nav>
+
+<main class="main">
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card veiculos">
+      <div class="stat-label">Veículos</div>
+      <div class="stat-value">{{ stats.veiculos }}</div>
+    </div>
+    <div class="stat-card moradores">
+      <div class="stat-label">Moradores</div>
+      <div class="stat-value">{{ stats.moradores }}</div>
+    </div>
+    <div class="stat-card acessos">
+      <div class="stat-label">Acessos Hoje</div>
+      <div class="stat-value" id="stat-acessos">{{ stats.acessos_hoje }}</div>
+    </div>
+    <div class="stat-card negados">
+      <div class="stat-label">Negados Hoje</div>
+      <div class="stat-value" id="stat-negados">{{ stats.negados_hoje }}</div>
+    </div>
+  </div>
+
+  <!-- Câmeras ao vivo -->
+  <div class="section-title"><span class="dot-live"></span> Câmeras ao Vivo</div>
+  <div class="cameras-grid">
+    {% for cam in cameras %}
+    <div class="cam-card">
+      {% if cam.rodando %}
+      <img class="cam-feed" src="/stream/{{ cam.id }}" alt="{{ cam.nome }}">
+      {% else %}
+      <div class="cam-inactive">
+        <span class="cam-icon">📷</span>
+        <span>{{ 'Desabilitada' if not cam.ativa else 'Sem sinal' }}</span>
+      </div>
+      {% endif %}
+      <div class="cam-footer">
+        <span class="cam-name">{{ cam.nome }}</span>
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <span class="cam-status {{ 'on' if cam.rodando else 'off' }}">
+            {{ '● Ao vivo' if cam.rodando else '○ Off' }}
+          </span>
+          <button class="cam-toggle" onclick="toggleCam('{{ cam.id }}', this)">
+            {{ 'Desligar' if cam.ativa else 'Ligar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Eventos ao vivo -->
+  <div class="section-title">Últimos Acessos</div>
+  <div class="events-list" id="events-list">
+    <!-- preenchido via JS -->
+  </div>
+
+</main>
+
+<div id="ws-status"><span id="ws-dot"></span> <span id="ws-label">Conectando...</span></div>
+
+<script>
+const MAX_EVENTOS = 30;
+let eventosCount = 0;
+
+// Carrega acessos iniciais
+fetch('/api/acessos?limite=10')
+  .then(r => r.json())
+  .then(data => data.forEach(a => addEvento({
+    placa: a.placa,
+    permitido: a.resultado === 'LIBERADO',
+    proprietario: '',
+    camera_nome: a.camera_id,
+    horario: a.criado_em,
+  }, false)));
+
+// WebSocket
+const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+let ws;
+
+function conectarWS() {
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => {
+    document.getElementById('ws-dot').className = 'connected';
+    document.getElementById('ws-label').textContent = 'Conectado';
+  };
+  ws.onmessage = (e) => {
+    const ev = JSON.parse(e.data);
+    addEvento(ev, true);
+    atualizarStats(ev);
+  };
+  ws.onclose = () => {
+    document.getElementById('ws-dot').className = '';
+    document.getElementById('ws-label').textContent = 'Reconectando...';
+    setTimeout(conectarWS, 3000);
+  };
+}
+conectarWS();
+
+function addEvento(ev, isNew) {
+  const list = document.getElementById('events-list');
+  const el = document.createElement('div');
+  el.className = `event-item ${isNew ? 'new' : ''}`;
+  const ok = ev.permitido;
+  el.innerHTML = `
+    <div class="event-badge ${ok ? 'ok' : 'nok'}">${ok ? '✅' : '🚫'}</div>
+    <div class="event-info">
+      <div class="event-placa">${ev.placa}</div>
+      <div class="event-sub">${ev.proprietario || 'Desconhecido'} · ${ev.camera_nome || '-'}</div>
+    </div>
+    <div class="event-time">${ev.horario ? ev.horario.slice(11,16) : ''}</div>
+  `;
+  list.insertBefore(el, list.firstChild);
+  setTimeout(() => el.classList.remove('new'), 2000);
+  // Limita a MAX_EVENTOS itens
+  while (list.children.length > MAX_EVENTOS) list.removeChild(list.lastChild);
+}
+
+function atualizarStats(ev) {
+  const acc = document.getElementById('stat-acessos');
+  const neg = document.getElementById('stat-negados');
+  acc.textContent = parseInt(acc.textContent) + 1;
+  if (!ev.permitido) neg.textContent = parseInt(neg.textContent) + 1;
+}
+
+async function toggleCam(id, btn) {
+  const r = await fetch(`/api/cameras/${id}/toggle`, { method: 'POST' });
+  const d = await r.json();
+  btn.textContent = d.ativo ? 'Desligar' : 'Ligar';
+  setTimeout(() => location.reload(), 500);
+}
+</script>
+</body>
+</html>

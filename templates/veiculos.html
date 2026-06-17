@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Veículos — Portaria</title>
+<style>
+  :root {
+    --bg:#0a0e17;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;
+    --accent:#3b82f6;--green:#10b981;--red:#ef4444;--text:#e2e8f0;--muted:#64748b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;min-height:100vh}
+  .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1rem;
+    display:flex;align-items:center;gap:1rem;height:56px;position:sticky;top:0;z-index:100}
+  .nav-logo{font-size:1.1rem;font-weight:700;color:var(--text)}
+  .nav-logo span{color:var(--accent)}
+  .nav-links{display:flex;gap:.25rem;margin-left:auto}
+  .nav-links a{padding:.4rem .75rem;border-radius:6px;color:var(--muted);text-decoration:none;
+    font-size:.875rem;transition:all .15s}
+  .nav-links a:hover,.nav-links a.active{background:var(--surface2);color:var(--text)}
+  .main{padding:1.5rem 1rem;max-width:900px;margin:0 auto}
+  h1{font-size:1.25rem;font-weight:700;margin-bottom:1.25rem}
+
+  /* Form */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:1.5rem}
+  .card-title{font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:1rem}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+  @media(max-width:480px){.form-grid{grid-template-columns:1fr}}
+  .form-group label{display:block;font-size:.75rem;color:var(--muted);margin-bottom:.3rem}
+  .form-group input, .form-group select{
+    width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+    color:var(--text);padding:.55rem .75rem;font-size:.875rem;outline:none;
+    transition:border-color .15s
+  }
+  .form-group input:focus,.form-group select:focus{border-color:var(--accent)}
+  .form-group select option{background:var(--surface)}
+  .btn{
+    padding:.6rem 1.25rem;border-radius:8px;border:none;font-size:.875rem;
+    font-weight:600;cursor:pointer;transition:all .15s
+  }
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{opacity:.85}
+  .btn-danger{background:none;border:1px solid var(--border);color:var(--red);padding:.3rem .6rem;font-size:.75rem;border-radius:6px;cursor:pointer}
+  .btn-danger:hover{background:#ef444418;border-color:var(--red)}
+  .form-actions{margin-top:1rem;display:flex;justify-content:flex-end}
+
+  /* Table */
+  .search-bar{
+    width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    color:var(--text);padding:.55rem .75rem;font-size:.875rem;outline:none;margin-bottom:1rem;
+    transition:border-color .15s
+  }
+  .search-bar:focus{border-color:var(--accent)}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.875rem}
+  thead th{
+    text-align:left;font-size:.7rem;font-weight:600;text-transform:uppercase;
+    letter-spacing:.06em;color:var(--muted);padding:.6rem .75rem;
+    border-bottom:1px solid var(--border)
+  }
+  tbody tr{border-bottom:1px solid var(--border);transition:background .12s}
+  tbody tr:hover{background:var(--surface2)}
+  tbody td{padding:.65rem .75rem;vertical-align:middle}
+  .placa{font-weight:700;letter-spacing:.05em;font-family:monospace;font-size:.95rem}
+  .badge{
+    display:inline-block;padding:.2rem .5rem;border-radius:99px;font-size:.7rem;font-weight:600
+  }
+  .badge-morador{background:#3b82f620;color:var(--accent)}
+  .badge-visitante{background:#f59e0b20;color:#f59e0b}
+  .badge-servico{background:#10b98120;color:var(--green)}
+  #toast{
+    position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);
+    background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+    padding:.6rem 1.25rem;font-size:.85rem;opacity:0;transition:opacity .3s;pointer-events:none
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-logo">🏢 <span>Portaria</span></span>
+  <div class="nav-links">
+    <a href="/">Dashboard</a>
+    <a href="/cameras">Câmeras</a>
+    <a href="/veiculos" class="active">Veículos</a>
+    <a href="/acessos">Acessos</a>
+  </div>
+</nav>
+
+<main class="main">
+  <h1>Veículos Cadastrados</h1>
+
+  <div class="card">
+    <div class="card-title">Adicionar Veículo</div>
+    <form id="form-veiculo">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Placa *</label>
+          <input name="placa" placeholder="ABC1D23" maxlength="7" style="text-transform:uppercase" required>
+        </div>
+        <div class="form-group">
+          <label>Modelo</label>
+          <input name="modelo" placeholder="Ex: Fiat Uno">
+        </div>
+        <div class="form-group">
+          <label>Cor</label>
+          <input name="cor" placeholder="Ex: Prata">
+        </div>
+        <div class="form-group">
+          <label>Morador</label>
+          <select name="morador_id">
+            <option value="">— Sem vínculo —</option>
+            {% for m in moradores %}
+            <option value="{{ m.id }}">{{ m.nome }} ({{ m.apartamento }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select name="tipo">
+            <option value="morador">Morador</option>
+            <option value="visitante">Visitante</option>
+            <option value="servico">Serviço</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Cadastrar Veículo</button>
+      </div>
+    </form>
+  </div>
+
+  <input class="search-bar" id="search" placeholder="🔍 Pesquisar por placa, modelo ou proprietário...">
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Placa</th>
+          <th>Modelo</th>
+          <th>Cor</th>
+          <th>Proprietário</th>
+          <th>Apto</th>
+          <th>Tipo</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        {% for v in veiculos %}
+        <tr data-search="{{ v.placa }} {{ v.modelo }} {{ v.proprietario }}">
+          <td class="placa">{{ v.placa }}</td>
+          <td>{{ v.modelo or '—' }}</td>
+          <td>{{ v.cor or '—' }}</td>
+          <td>{{ v.proprietario or '—' }}</td>
+          <td>{{ v.apartamento or '—' }}</td>
+          <td><span class="badge badge-{{ v.tipo }}">{{ v.tipo }}</span></td>
+          <td>
+            <button class="btn-danger" onclick="remover('{{ v.placa }}', this)">Remover</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+// Search filter
+document.getElementById('search').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('#tbody tr').forEach(tr => {
+    tr.style.display = tr.dataset.search.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+
+// Add vehicle
+document.getElementById('form-veiculo').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  // Remove empty morador_id
+  if (!fd.get('morador_id')) fd.delete('morador_id');
+
+  const r = await fetch('/api/veiculos', { method: 'POST', body: fd });
+  if (r.ok) {
+    showToast('✅ Veículo cadastrado!');
+    setTimeout(() => location.reload(), 800);
+  } else {
+    showToast('❌ Placa já cadastrada.');
+  }
+});
+
+// Remove vehicle
+async function remover(placa, btn) {
+  if (!confirm(`Remover veículo ${placa}?`)) return;
+  const r = await fetch(`/api/veiculos/${placa}`, { method: 'DELETE' });
+  if (r.ok) {
+    btn.closest('tr').remove();
+    showToast('Veículo removido.');
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.opacity = '1';
+  setTimeout(() => t.style.opacity = '0', 2500);
+}
+</script>
+</body>
+</html>

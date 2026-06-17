@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log de Acessos — Portaria</title>
+<style>
+  :root{--bg:#0a0e17;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;
+    --accent:#3b82f6;--green:#10b981;--red:#ef4444;--text:#e2e8f0;--muted:#64748b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif}
+  .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1rem;
+    display:flex;align-items:center;gap:1rem;height:56px;position:sticky;top:0;z-index:100}
+  .nav-logo{font-size:1.1rem;font-weight:700;color:var(--text)}
+  .nav-logo span{color:var(--accent)}
+  .nav-links{display:flex;gap:.25rem;margin-left:auto}
+  .nav-links a{padding:.4rem .75rem;border-radius:6px;color:var(--muted);text-decoration:none;font-size:.875rem}
+  .nav-links a:hover,.nav-links a.active{background:var(--surface2);color:var(--text)}
+  .main{padding:1.5rem 1rem;max-width:1000px;margin:0 auto}
+  h1{font-size:1.25rem;font-weight:700;margin-bottom:1.25rem}
+
+  .filters{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}
+  .filter-btn{
+    background:var(--surface);border:1px solid var(--border);color:var(--muted);
+    border-radius:8px;padding:.4rem .85rem;font-size:.8rem;cursor:pointer;transition:all .15s
+  }
+  .filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .search-bar{
+    flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border);
+    border-radius:8px;color:var(--text);padding:.4rem .75rem;font-size:.8rem;outline:none
+  }
+  .search-bar:focus{border-color:var(--accent)}
+
+  .events{display:flex;flex-direction:column;gap:.5rem}
+  .ev{
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;
+    padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem
+  }
+  .ev.liberado{border-left:3px solid var(--green)}
+  .ev.negado{border-left:3px solid var(--red)}
+  .ev-icon{font-size:1.1rem;flex-shrink:0}
+  .ev-info{flex:1;min-width:0}
+  .ev-placa{font-weight:700;font-family:monospace;font-size:.95rem;letter-spacing:.05em}
+  .ev-sub{font-size:.75rem;color:var(--muted);margin-top:.1rem}
+  .ev-meta{text-align:right;flex-shrink:0}
+  .ev-time{font-size:.7rem;color:var(--muted);display:block}
+  .ev-cam{font-size:.7rem;color:var(--muted)}
+  .badge-lib{background:#10b98118;color:var(--green);padding:.15rem .45rem;border-radius:99px;font-size:.7rem;font-weight:600}
+  .badge-neg{background:#ef444418;color:var(--red);padding:.15rem .45rem;border-radius:99px;font-size:.7rem;font-weight:600}
+
+  .img-thumb{width:60px;height:40px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0}
+
+  /* Lightbox */
+  #lightbox{
+    display:none;position:fixed;inset:0;background:#000a;z-index:999;
+    align-items:center;justify-content:center
+  }
+  #lightbox.open{display:flex}
+  #lightbox img{max-width:90vw;max-height:85vh;border-radius:8px}
+  #lightbox-close{position:absolute;top:1rem;right:1rem;background:none;border:none;color:#fff;font-size:2rem;cursor:pointer}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-logo">🏢 <span>Portaria</span></span>
+  <div class="nav-links">
+    <a href="/">Dashboard</a>
+    <a href="/cameras">Câmeras</a>
+    <a href="/veiculos">Veículos</a>
+    <a href="/acessos" class="active">Acessos</a>
+  </div>
+</nav>
+
+<main class="main">
+  <h1>Log de Acessos</h1>
+
+  <div class="filters">
+    <button class="filter-btn active" data-filter="todos">Todos</button>
+    <button class="filter-btn" data-filter="liberado">✅ Liberados</button>
+    <button class="filter-btn" data-filter="negado">🚫 Negados</button>
+    <input class="search-bar" id="search" placeholder="🔍 Buscar placa...">
+  </div>
+
+  <div class="events" id="events">
+    {% for a in acessos %}
+    {% set lib = a.resultado == 'LIBERADO' %}
+    <div class="ev {{ 'liberado' if lib else 'negado' }}" data-resultado="{{ a.resultado|lower }}" data-placa="{{ a.placa }}">
+      <span class="ev-icon">{{ '✅' if lib else '🚫' }}</span>
+      <div class="ev-info">
+        <div class="ev-placa">{{ a.placa }}</div>
+        <div class="ev-sub">{{ a.motivo or '—' }}</div>
+      </div>
+      {% if a.imagem_path %}
+      <img class="img-thumb" src="/{{ a.imagem_path }}" onclick="abrirLightbox(this.src)" alt="captura">
+      {% endif %}
+      <div class="ev-meta">
+        <span class="badge-{{ 'lib' if lib else 'neg' }}">{{ a.resultado }}</span>
+        <span class="ev-time">{{ a.criado_em[11:16] if a.criado_em else '' }}</span>
+        <span class="ev-time">{{ a.criado_em[:10] if a.criado_em else '' }}</span>
+        <span class="ev-cam">📷 {{ a.camera_id or '—' }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</main>
+
+<div id="lightbox" onclick="fecharLightbox()">
+  <button id="lightbox-close">×</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<script>
+let filtroAtivo = 'todos';
+let buscaAtiva = '';
+
+function aplicarFiltros() {
+  document.querySelectorAll('.ev').forEach(el => {
+    const res = el.dataset.resultado;
+    const placa = el.dataset.placa.toLowerCase();
+    const passaFiltro = filtroAtivo === 'todos' || res === filtroAtivo;
+    const passaBusca = placa.includes(buscaAtiva);
+    el.style.display = passaFiltro && passaBusca ? '' : 'none';
+  });
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filtroAtivo = btn.dataset.filter;
+    aplicarFiltros();
+  });
+});
+
+document.getElementById('search').addEventListener('input', function() {
+  buscaAtiva = this.value.toLowerCase();
+  aplicarFiltros();
+});
+
+function abrirLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function fecharLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+</script>
+</body>
+</html>

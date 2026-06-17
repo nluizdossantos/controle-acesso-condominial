@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Câmeras — Portaria</title>
+<style>
+  :root{--bg:#0a0e17;--surface:#111827;--surface2:#1a2235;--border:#1e2d45;
+    --accent:#3b82f6;--green:#10b981;--red:#ef4444;--text:#e2e8f0;--muted:#64748b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif}
+  .nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1rem;
+    display:flex;align-items:center;gap:1rem;height:56px;position:sticky;top:0;z-index:100}
+  .nav-logo{font-size:1.1rem;font-weight:700;color:var(--text)}
+  .nav-logo span{color:var(--accent)}
+  .nav-links{display:flex;gap:.25rem;margin-left:auto}
+  .nav-links a{padding:.4rem .75rem;border-radius:6px;color:var(--muted);text-decoration:none;font-size:.875rem}
+  .nav-links a:hover,.nav-links a.active{background:var(--surface2);color:var(--text)}
+  .main{padding:1.5rem 1rem;max-width:1100px;margin:0 auto}
+  h1{font-size:1.25rem;font-weight:700;margin-bottom:1.25rem}
+  .grid{display:grid;grid-template-columns:1fr;gap:1rem}
+  @media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(min-width:1024px){.grid{grid-template-columns:repeat(3,1fr)}}
+
+  .cam-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .cam-feed{width:100%;aspect-ratio:16/9;object-fit:cover;background:#000;display:block}
+  .cam-inactive{width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;
+    background:#060a12;color:var(--muted);font-size:.8rem;flex-direction:column;gap:.5rem}
+  .cam-body{padding:1rem}
+  .cam-name{font-size:1rem;font-weight:700;margin-bottom:.25rem}
+  .cam-source{font-size:.72rem;color:var(--muted);font-family:monospace;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:.75rem}
+  .cam-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+  .status-dot{display:flex;align-items:center;gap:.4rem;font-size:.8rem}
+  .dot{width:8px;height:8px;border-radius:50%}
+  .dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+  .dot.off{background:var(--muted)}
+  .btn-toggle{
+    background:none;border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:.4rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s
+  }
+  .btn-toggle.on:hover{background:#ef444418;border-color:var(--red);color:var(--red)}
+  .btn-toggle.off:hover{background:#10b98118;border-color:var(--green);color:var(--green)}
+  .cam-last{margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted)}
+  .cam-last strong{color:var(--text)}
+  .help{margin-top:2rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem}
+  .help h2{font-size:.85rem;font-weight:700;margin-bottom:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .help code{background:var(--surface2);padding:.1rem .35rem;border-radius:4px;font-size:.8rem;color:var(--accent)}
+  .help p{font-size:.8rem;color:var(--muted);line-height:1.6;margin-bottom:.5rem}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="nav-logo">🏢 <span>Portaria</span></span>
+  <div class="nav-links">
+    <a href="/">Dashboard</a>
+    <a href="/cameras" class="active">Câmeras</a>
+    <a href="/veiculos">Veículos</a>
+    <a href="/acessos">Acessos</a>
+  </div>
+</nav>
+
+<main class="main">
+  <h1>Gerenciar Câmeras</h1>
+
+  <div class="grid">
+    {% for cam in cameras %}
+    <div class="cam-card">
+      {% if cam.rodando %}
+      <img class="cam-feed" src="/stream/{{ cam.id }}" alt="{{ cam.nome }}">
+      {% else %}
+      <div class="cam-inactive">
+        <span style="font-size:2rem;opacity:.25">📷</span>
+        <span>{{ 'Desabilitada' if not cam.ativa else 'Sem sinal / Reconectando' }}</span>
+      </div>
+      {% endif %}
+      <div class="cam-body">
+        <div class="cam-name">{{ cam.nome }}</div>
+        <div class="cam-source" title="{{ cam.fonte }}">{{ cam.fonte }}</div>
+        <div class="cam-row">
+          <div class="status-dot">
+            <span class="dot {{ 'on' if cam.rodando else 'off' }}"></span>
+            {{ 'Ao vivo' if cam.rodando else ('Desabilitada' if not cam.ativa else 'Sem sinal') }}
+          </div>
+          <button
+            class="btn-toggle {{ 'on' if cam.ativa else 'off' }}"
+            id="btn-{{ cam.id }}"
+            onclick="toggleCam('{{ cam.id }}', this)"
+          >
+            {{ '⏸ Desligar' if cam.ativa else '▶ Ligar' }}
+          </button>
+        </div>
+        {% if cam.ultimo_evento %}
+        <div class="cam-last">
+          Último acesso:
+          <strong>{{ cam.ultimo_evento.placa }}</strong>
+          —
+          {{ '✅ LIBERADO' if cam.ultimo_evento.permitido else '🚫 NEGADO' }}
+          {{ '(' + cam.ultimo_evento.horario + ')' if cam.ultimo_evento.horario else '' }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="help">
+    <h2>Como adicionar câmeras</h2>
+    <p>Edite a lista <code>CAMERAS_CONFIG</code> no arquivo <code>camera_manager.py</code>:</p>
+    <p>• Webcam USB: <code>"fonte": 0</code> (ou 1, 2… para câmeras adicionais)</p>
+    <p>• Câmera IP (RTSP): <code>"fonte": "rtsp://usuario:senha@192.168.1.100:554/stream"</code></p>
+    <p>• Arquivo de vídeo: <code>"fonte": "video.mp4"</code></p>
+    <p>O campo <code>"ativa": false</code> mantém a câmera desligada na inicialização. Você pode ligar/desligar aqui sem reiniciar.</p>
+  </div>
+</main>
+
+<script>
+async function toggleCam(id, btn) {
+  btn.disabled = true;
+  const r = await fetch(`/api/cameras/${id}/toggle`, { method: 'POST' });
+  const d = await r.json();
+  btn.disabled = false;
+  setTimeout(() => location.reload(), 400);
+}
+</script>
+</body>
+</html>

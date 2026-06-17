@@ -1,0 +1,21 @@
+# ============================================================
+#  Dependências — Sistema de Controle de Acesso com Web UI
+# ============================================================
+
+# Servidor web
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+jinja2>=3.1.4
+python-multipart>=0.0.9
+
+# Visão computacional / OCR
+opencv-python>=4.8.0
+easyocr>=1.7.0
+numpy>=1.24.0
+
+# WhatsApp (escolha um)
+requests>=2.31.0          # CallMeBot (gratuito)
+# twilio>=8.0.0           # Descomente para usar Twilio
+
+# Opcional: GPU NVIDIA
+# torch com CUDA — siga: https://pytorch.org/get-started/locally/
