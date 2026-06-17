@@ -26,6 +26,14 @@ alpr_v2/
 
 ---
 
+## ✅ Pré-requisitos
+
+- Python 3.9+
+- pip
+- Câmera USB ou câmera IP acessível via RTSP
+
+---
+
 ## ⚙️ Instalação
 
 ```bash
@@ -33,7 +41,11 @@ alpr_v2/
 pip install -r requirements.txt
 
 # 2. Configurar variáveis de ambiente
+# Linux/macOS:
 cp .env.example .env
+# Windows:
+copy .env.example .env
+
 # Edite .env com suas credenciais WhatsApp
 ```
 
