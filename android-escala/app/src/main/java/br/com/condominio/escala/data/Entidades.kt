@@ -44,6 +44,8 @@ data class EscalaEntity(
     val horaInicioMin: Int,
     val horaFimMin: Int,
     val posto: String,
+    /** Dia do mês (1–28) em que trabalho e folga se invertem; null desativa. */
+    val diaInversao: Int? = null,
 ) {
     fun paraDominio() = EscalaFuncionario(
         escalaId = id,
@@ -54,6 +56,7 @@ data class EscalaEntity(
             inicio = LocalDate.ofEpochDay(inicioEpochDay),
             horaInicio = LocalTime.of(horaInicioMin / 60, horaInicioMin % 60),
             horaFim = LocalTime.of(horaFimMin / 60, horaFimMin % 60),
+            diaInversao = diaInversao,
         ),
         posto = posto,
         fimVigencia = fimEpochDay?.let(LocalDate::ofEpochDay),

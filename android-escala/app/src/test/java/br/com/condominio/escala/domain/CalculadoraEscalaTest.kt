@@ -95,4 +95,29 @@ class CalculadoraEscalaTest {
         val proximos = CalculadoraEscala.proximosTurnos(e, aus, inicio, 2)
         assertEquals(listOf(inicio.plusDays(2), inicio.plusDays(4)), proximos.map { it.data })
     }
+
+    @Test
+    fun `12x36 inverte os dias de trabalho todo dia 10`() {
+        val r = escala(1, TipoEscala.DOZE_X_TRINTA_E_SEIS).regra.copy(diaInversao = 10)
+        // Até o dia 9 segue o ciclo normal: trabalha nos dias ímpares de outubro.
+        assertTrue(r.trabalhaEm(LocalDate.of(2026, 10, 9)))
+        // Dia 10 inverte: passa a trabalhar nos dias pares.
+        assertTrue(r.trabalhaEm(LocalDate.of(2026, 10, 10)))
+        assertFalse(r.trabalhaEm(LocalDate.of(2026, 10, 11)))
+        assertTrue(r.trabalhaEm(LocalDate.of(2026, 10, 12)))
+        // Em 10/11 inverte de novo (segunda inversão volta ao ciclo original).
+        val semInversao = r.copy(diaInversao = null)
+        val nov10 = LocalDate.of(2026, 11, 10)
+        assertEquals(2L, r.inversoesAte(nov10))
+        assertEquals(semInversao.trabalhaEm(nov10), r.trabalhaEm(nov10))
+        assertEquals(!semInversao.trabalhaEm(nov10.minusDays(1)), r.trabalhaEm(nov10.minusDays(1)))
+    }
+
+    @Test
+    fun `inversao nao conta o proprio dia de inicio`() {
+        val r = escala(1, TipoEscala.DOZE_X_TRINTA_E_SEIS, comeco = LocalDate.of(2026, 10, 10)).regra.copy(diaInversao = 10)
+        assertEquals(0L, r.inversoesAte(LocalDate.of(2026, 10, 10)))
+        assertTrue(r.trabalhaEm(LocalDate.of(2026, 10, 10)))
+        assertEquals(1L, r.inversoesAte(LocalDate.of(2026, 11, 10)))
+    }
 }

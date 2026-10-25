@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -130,6 +131,9 @@ fun FuncionarioScreen(vm: EscalaViewModel, id: Long, aoExcluir: () -> Unit, modi
                         val vigencia = "Desde ${regra.inicio.formatada()}" +
                             (e.fimEpochDay?.let { " até ${LocalDate.ofEpochDay(it).formatada()}" } ?: "")
                         Text(vigencia, style = MaterialTheme.typography.bodySmall)
+                        e.diaInversao?.let {
+                            Text("Inverte trabalho/folga todo dia $it", style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                     IconButton(onClick = { dialogo = Dialogo.Escala(e) }) { Icon(Icons.Default.Edit, "Editar escala") }
                     IconButton(onClick = { dialogo = Dialogo.ExcluirEscala(e) }) { Icon(Icons.Default.Delete, "Excluir escala") }
@@ -215,12 +219,18 @@ private fun DialogoEscala(
     var horaInicio by remember { mutableStateOf(inicial?.horaInicioMin?.paraHora() ?: horarioPadrao(tipo).first) }
     var horaFim by remember { mutableStateOf(inicial?.horaFimMin?.paraHora() ?: horarioPadrao(tipo).second) }
     var posto by remember { mutableStateOf(inicial?.posto ?: "Portaria") }
+    var inverter by remember { mutableStateOf(inicial?.diaInversao != null) }
+    var diaInversao by remember { mutableStateOf((inicial?.diaInversao ?: 10).toString()) }
 
     val diasTrab = trabalho.toIntOrNull()
     val diasFolga = folga.toIntOrNull()
     val fimVigencia = fim
+    // A inversão só mantém o formato da escala quando trabalho e folga têm a mesma duração (12x36, 2x2...).
+    val permiteInversao = diasTrab != null && diasTrab == diasFolga
+    val diaInv = diaInversao.toIntOrNull()?.takeIf { it in 1..28 }
     val valido = diasTrab != null && diasTrab >= 1 && diasFolga != null && diasFolga >= 0 &&
-        posto.isNotBlank() && (fimVigencia == null || !fimVigencia.isBefore(inicio))
+        posto.isNotBlank() && (fimVigencia == null || !fimVigencia.isBefore(inicio)) &&
+        (!inverter || !permiteInversao || diaInv != null)
 
     AlertDialog(
         onDismissRequest = aoFechar,
@@ -259,6 +269,24 @@ private fun DialogoEscala(
                 CampoData("Primeiro dia de trabalho", inicio, { if (it != null) inicio = it })
                 CampoData("Fim da vigência", fim, { fim = it }, opcional = true)
                 OutlinedTextField(posto, { posto = it }, label = { Text("Posto / local") }, singleLine = true)
+                if (permiteInversao) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Inverter trabalho/folga todo mês", modifier = Modifier.weight(1f))
+                        Switch(checked = inverter, onCheckedChange = { inverter = it })
+                    }
+                    if (inverter) {
+                        OutlinedTextField(
+                            diaInversao, { diaInversao = it.filter(Char::isDigit).take(2) },
+                            label = { Text("Dia do mês (1 a 28)") }, singleLine = true,
+                            isError = diaInv == null,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        )
+                        Text(
+                            "A partir desse dia, quem folgaria passa a trabalhar e vice-versa.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
@@ -275,6 +303,7 @@ private fun DialogoEscala(
                         horaInicioMin = horaInicio.emMinutos(),
                         horaFimMin = horaFim.emMinutos(),
                         posto = posto.trim(),
+                        diaInversao = if (inverter && permiteInversao) diaInv else null,
                     ),
                 )
                 aoFechar()
