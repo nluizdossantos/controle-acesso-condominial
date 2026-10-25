@@ -26,6 +26,14 @@ alpr_v2/
 
 ---
 
+## 📱 App Android — Escala de Trabalho
+
+A pasta [`android-escala/`](android-escala/README.md) contém um aplicativo Android para
+montar e consultar a escala da equipe (12x36, 24x48, 6x1, 5x2…), com calendário mensal,
+quem está em serviço agora, férias/atestados e compartilhamento da escala pelo WhatsApp.
+
+---
+
 ## ✅ Pré-requisitos
 
 - Python 3.9+

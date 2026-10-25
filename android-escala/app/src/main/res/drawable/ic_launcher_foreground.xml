@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- corpo do calendário -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,38h36a4,4 0,0 1,4 4v26a4,4 0,0 1,-4 4h-36a4,4 0,0 1,-4 -4v-26a4,4 0,0 1,4 -4z" />
+    <!-- faixa superior -->
+    <path
+        android:fillColor="#93C5FD"
+        android:pathData="M36,38h36a4,4 0,0 1,4 4v4h-44v-4a4,4 0,0 1,4 -4z" />
+    <!-- argolas -->
+    <path android:fillColor="#FFFFFF" android:pathData="M41,33h4v9h-4z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M63,33h4v9h-4z" />
+    <!-- dias -->
+    <path android:fillColor="#1E40AF" android:pathData="M38,51h7v6h-7z M50.5,51h7v6h-7z M63,51h7v6h-7z M38,61h7v6h-7z M63,61h7v6h-7z" />
+    <path android:fillColor="#10B981" android:pathData="M50.5,61h7v6h-7z" />
+</vector>
