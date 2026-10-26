@@ -131,8 +131,11 @@ fun FuncionarioScreen(vm: EscalaViewModel, id: Long, aoExcluir: () -> Unit, modi
                         val vigencia = "Desde ${regra.inicio.formatada()}" +
                             (e.fimEpochDay?.let { " até ${LocalDate.ofEpochDay(it).formatada()}" } ?: "")
                         Text(vigencia, style = MaterialTheme.typography.bodySmall)
-                        e.diaInversao?.let {
-                            Text("Inverte trabalho/folga todo dia $it", style = MaterialTheme.typography.bodySmall)
+                        e.diaInversao?.let { dia ->
+                            val txt = e.deslocamentoInversao
+                                ?.let { "Folgas andam $it dia(s) todo dia $dia" }
+                                ?: "Inverte trabalho/folga todo dia $dia"
+                            Text(txt, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     IconButton(onClick = { dialogo = Dialogo.Escala(e) }) { Icon(Icons.Default.Edit, "Editar escala") }
@@ -221,16 +224,23 @@ private fun DialogoEscala(
     var posto by remember { mutableStateOf(inicial?.posto ?: "Portaria") }
     var inverter by remember { mutableStateOf(inicial?.diaInversao != null) }
     var diaInversao by remember { mutableStateOf((inicial?.diaInversao ?: 10).toString()) }
+    var deslocamento by remember {
+        mutableStateOf((inicial?.deslocamentoInversao ?: inicial?.diasFolga ?: tipo.diasFolga).toString())
+    }
 
     val diasTrab = trabalho.toIntOrNull()
     val diasFolga = folga.toIntOrNull()
     val fimVigencia = fim
-    // A inversão só mantém o formato da escala quando trabalho e folga têm a mesma duração (12x36, 2x2...).
-    val permiteInversao = diasTrab != null && diasTrab == diasFolga
+    // Com trabalho e folga do mesmo tamanho (12x36, 2x2...) a virada é uma inversão simples;
+    // nas demais (5x2, 6x1...) as folgas andam o número de dias escolhido.
+    val ciclo = (diasTrab ?: 0) + (diasFolga ?: 0)
+    val permiteInversao = diasTrab != null && diasFolga != null && diasFolga >= 1
+    val inversaoSimples = permiteInversao && diasTrab == diasFolga
     val diaInv = diaInversao.toIntOrNull()?.takeIf { it in 1..28 }
+    val desloc = deslocamento.toIntOrNull()?.takeIf { it in 1 until ciclo }
     val valido = diasTrab != null && diasTrab >= 1 && diasFolga != null && diasFolga >= 0 &&
         posto.isNotBlank() && (fimVigencia == null || !fimVigencia.isBefore(inicio)) &&
-        (!inverter || !permiteInversao || diaInv != null)
+        (!inverter || !permiteInversao || (diaInv != null && (inversaoSimples || desloc != null)))
 
     AlertDialog(
         onDismissRequest = aoFechar,
@@ -242,6 +252,7 @@ private fun DialogoEscala(
                     if (novo != TipoEscala.PERSONALIZADA) {
                         trabalho = novo.diasTrabalho.toString()
                         folga = novo.diasFolga.toString()
+                        deslocamento = novo.diasFolga.toString()
                     }
                     horarioPadrao(novo).let { (a, b) -> horaInicio = a; horaFim = b }
                 }
@@ -271,7 +282,10 @@ private fun DialogoEscala(
                 OutlinedTextField(posto, { posto = it }, label = { Text("Posto / local") }, singleLine = true)
                 if (permiteInversao) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Inverter trabalho/folga todo mês", modifier = Modifier.weight(1f))
+                        Text(
+                            if (inversaoSimples) "Inverter trabalho/folga todo mês" else "Mudar as folgas de lugar todo mês",
+                            modifier = Modifier.weight(1f),
+                        )
                         Switch(checked = inverter, onCheckedChange = { inverter = it })
                     }
                     if (inverter) {
@@ -281,8 +295,18 @@ private fun DialogoEscala(
                             isError = diaInv == null,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         )
+                        if (!inversaoSimples) {
+                            OutlinedTextField(
+                                deslocamento, { deslocamento = it.filter(Char::isDigit).take(2) },
+                                label = { Text("Folgas andam quantos dias (1 a ${ciclo - 1})") }, singleLine = true,
+                                isError = desloc == null,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            )
+                        }
                         Text(
-                            "A partir desse dia, quem folgaria passa a trabalhar e vice-versa.",
+                            if (inversaoSimples) "A partir desse dia, quem folgaria passa a trabalhar e vice-versa."
+                            else "A partir desse dia as folgas passam para os dias seguintes. " +
+                                "Atenção: na semana da virada pode haver mais dias de trabalho seguidos.",
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -304,6 +328,7 @@ private fun DialogoEscala(
                         horaFimMin = horaFim.emMinutos(),
                         posto = posto.trim(),
                         diaInversao = if (inverter && permiteInversao) diaInv else null,
+                        deslocamentoInversao = if (inverter && permiteInversao && !inversaoSimples) desloc else null,
                     ),
                 )
                 aoFechar()

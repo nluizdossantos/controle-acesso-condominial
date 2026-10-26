@@ -14,8 +14,10 @@ salvos no próprio aparelho.
 - **Equipe** — cadastro de funcionários com cargo, telefone, cor e status ativo/inativo.
 - **Escalas** — 12x36, 24x48, 6x1, 5x2, 4x2 ou personalizada (N dias de trabalho × M de folga),
   com horário de entrada/saída, posto e período de vigência.
-- **Inversão mensal** — em escalas com trabalho e folga do mesmo tamanho (12x36, 2x2…), opção
-  para inverter os dias de trabalho todo mês num dia escolhido (padrão: dia 10).
+- **Virada mensal** — todo mês, num dia escolhido (padrão: dia 10), a escala muda:
+  - 12x36, 2x2 e similares: trabalho e folga se invertem;
+  - 5x2, 6x1 e demais: as folgas andam N dias (ex.: 5x2 com 2 dias → folgas de sáb/dom passam
+    para seg/ter). Na semana da virada pode haver mais dias de trabalho seguidos que o normal.
 - **Férias, atestados, folgas e trocas** — o turno aparece riscado no dia e sai das horas do mês.
 
 ## Como obter o APK

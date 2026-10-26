@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [FuncionarioEntity::class, EscalaEntity::class, AusenciaEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -25,12 +25,19 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v3: quantos dias as folgas andam a cada inversão (ex.: 5x2). */
+        private val MIGRACAO_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE escalas ADD COLUMN deslocamentoInversao INTEGER")
+            }
+        }
+
         @Volatile
         private var instancia: AppDatabase? = null
 
         fun get(context: Context): AppDatabase = instancia ?: synchronized(this) {
             instancia ?: Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "escala.db")
-                .addMigrations(MIGRACAO_1_2)
+                .addMigrations(MIGRACAO_1_2, MIGRACAO_2_3)
                 .build()
                 .also { instancia = it }
         }

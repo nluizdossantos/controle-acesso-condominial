@@ -120,4 +120,25 @@ class CalculadoraEscalaTest {
         assertTrue(r.trabalhaEm(LocalDate.of(2026, 10, 10)))
         assertEquals(1L, r.inversoesAte(LocalDate.of(2026, 11, 10)))
     }
+
+    @Test
+    fun `5x2 muda as folgas de lugar todo dia 10`() {
+        // 05/10/2026 é segunda: trabalha seg–sex, folga sáb/dom.
+        val segunda = LocalDate.of(2026, 10, 5)
+        val r = escala(1, TipoEscala.CINCO_X_DOIS, comeco = segunda).regra
+            .copy(diaInversao = 10, deslocamentoInversao = 2)
+        fun semana(seg: LocalDate) = (0L..6L).map { r.trabalhaEm(seg.plusDays(it)) }
+        val t = true
+        val f = false
+        // Semana da virada: seg–sex no ciclo antigo; sáb 10/10 já vira, e sáb/dom passam a ser
+        // trabalho. Resultado: 7 dias seguidos antes da primeira folga nova.
+        assertEquals(listOf(t, t, t, t, t, t, t), semana(segunda))
+        // Depois da virada as folgas andaram 2 dias: seg/ter de folga, qua–dom trabalhando.
+        assertEquals(listOf(f, f, t, t, t, t, t), semana(LocalDate.of(2026, 10, 12)))
+        assertEquals(listOf(f, f, t, t, t, t, t), semana(LocalDate.of(2026, 11, 2)))
+        // Em 10/11 (terça) andam mais 2: folgas passam para qua/qui.
+        assertEquals(listOf(t, t, f, f, t, t, t), semana(LocalDate.of(2026, 11, 16)))
+        // O total continua 5 dias de trabalho por semana.
+        assertEquals(5, semana(LocalDate.of(2026, 11, 16)).count { it })
+    }
 }

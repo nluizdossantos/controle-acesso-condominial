@@ -39,9 +39,11 @@ enum class MotivoAusencia(val rotulo: String) {
  * Quando [horaFim] não é posterior a [horaInicio] o turno é noturno e termina no dia seguinte
  * (ex.: 19:00–07:00, ou 07:00–07:00 para um plantão de 24h).
  *
- * Se [diaInversao] estiver definido, todo mês nesse dia os dias de trabalho e de folga se
- * invertem (quem folgaria passa a trabalhar e vice-versa). Útil para alternar quem pega os
- * dias pares/ímpares numa 12x36 a cada mês.
+ * Se [diaInversao] estiver definido, todo mês nesse dia o ciclo anda [deslocamentoInversao] dias:
+ * as folgas mudam de lugar, mantendo o mesmo número de dias de trabalho e de folga.
+ * Sem deslocamento informado, anda [diasTrabalho] dias, o que numa escala com trabalho e folga
+ * do mesmo tamanho (12x36, 2x2) inverte os dias: quem folgaria passa a trabalhar e vice-versa.
+ * Numa 5x2 com deslocamento 2, folgas de sáb/dom passam para seg/ter, depois qua/qui etc.
  */
 data class RegraEscala(
     val diasTrabalho: Int,
@@ -50,11 +52,13 @@ data class RegraEscala(
     val horaInicio: LocalTime,
     val horaFim: LocalTime,
     val diaInversao: Int? = null,
+    val deslocamentoInversao: Int? = null,
 ) {
     init {
         require(diasTrabalho >= 1) { "diasTrabalho deve ser >= 1" }
         require(diasFolga >= 0) { "diasFolga deve ser >= 0" }
         require(diaInversao == null || diaInversao in 1..28) { "diaInversao deve estar entre 1 e 28" }
+        require(deslocamentoInversao == null || deslocamentoInversao >= 1) { "deslocamentoInversao deve ser >= 1" }
     }
 
     val ciclo: Int get() = diasTrabalho + diasFolga
@@ -71,8 +75,8 @@ data class RegraEscala(
     fun trabalhaEm(data: LocalDate): Boolean {
         val dias = ChronoUnit.DAYS.between(inicio, data)
         if (dias < 0) return false
-        val noCiclo = Math.floorMod(dias, ciclo.toLong()) < diasTrabalho
-        return if (inversoesAte(data) % 2 == 1L) !noCiclo else noCiclo
+        val deslocamento = (deslocamentoInversao ?: diasTrabalho) * inversoesAte(data)
+        return Math.floorMod(dias - deslocamento, ciclo.toLong()) < diasTrabalho
     }
 
     /** Quantas vezes o dia de inversão ocorreu depois de [inicio] e até [data] (inclusive). */
