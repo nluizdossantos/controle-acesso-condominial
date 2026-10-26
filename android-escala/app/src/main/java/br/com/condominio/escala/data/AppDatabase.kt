@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [FuncionarioEntity::class, EscalaEntity::class, AusenciaEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -32,12 +32,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v4: escala semanal com dias de folga fixos que alternam na virada. */
+        private val MIGRACAO_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE escalas ADD COLUMN folgasSemana INTEGER")
+                db.execSQL("ALTER TABLE escalas ADD COLUMN folgasVirada INTEGER")
+            }
+        }
+
         @Volatile
         private var instancia: AppDatabase? = null
 
         fun get(context: Context): AppDatabase = instancia ?: synchronized(this) {
             instancia ?: Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "escala.db")
-                .addMigrations(MIGRACAO_1_2, MIGRACAO_2_3)
+                .addMigrations(MIGRACAO_1_2, MIGRACAO_2_3, MIGRACAO_3_4)
                 .build()
                 .also { instancia = it }
         }

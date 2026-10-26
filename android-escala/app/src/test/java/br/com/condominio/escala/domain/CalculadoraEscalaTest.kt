@@ -4,6 +4,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.DayOfWeek.FRIDAY
+import java.time.DayOfWeek.MONDAY
+import java.time.DayOfWeek.SATURDAY
+import java.time.DayOfWeek.SUNDAY
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -140,5 +144,33 @@ class CalculadoraEscalaTest {
         assertEquals(listOf(t, t, f, f, t, t, t), semana(LocalDate.of(2026, 11, 16)))
         // O total continua 5 dias de trabalho por semana.
         assertEquals(5, semana(LocalDate.of(2026, 11, 16)).count { it })
+    }
+
+    @Test
+    fun `5x2 semanal - Nelson e Bruno trocam as folgas todo dia 10`() {
+        val base = escala(1, TipoEscala.CINCO_X_DOIS).regra.copy(diaInversao = 10)
+        // Nelson: trabalha ter–sáb, folga dom/seg. Bruno: trabalha dom–qui, folga sex/sáb.
+        val nelson = base.copy(folgasSemana = setOf(SUNDAY, MONDAY), folgasSemanaVirada = setOf(FRIDAY, SATURDAY))
+        val bruno = base.copy(folgasSemana = setOf(FRIDAY, SATURDAY), folgasSemanaVirada = setOf(SUNDAY, MONDAY))
+        val t = true
+        val f = false
+        // Ordem dos dias: dom..sáb. De 04/10/2026 (dom) a 09/10 (sex) vale a escala original;
+        // o sábado 10/10 já é dia de virada.
+        fun semana(r: RegraEscala, domingo: LocalDate) = (0L..6L).map { r.trabalhaEm(domingo.plusDays(it)) }
+        val sem1 = LocalDate.of(2026, 10, 4)
+        assertEquals(listOf(f, f, t, t, t, t), semana(nelson, sem1).take(6))
+        assertEquals(listOf(t, t, t, t, t, f), semana(bruno, sem1).take(6))
+        // A partir de 10/10 eles trocam.
+        val sem2 = LocalDate.of(2026, 10, 11)
+        assertEquals(listOf(t, t, t, t, t, f, f), semana(nelson, sem2))
+        assertEquals(listOf(f, f, t, t, t, t, t), semana(bruno, sem2))
+        // Em 10/11 trocam de novo, voltando ao original.
+        val sem3 = LocalDate.of(2026, 11, 15)
+        assertEquals(listOf(f, f, t, t, t, t, t), semana(nelson, sem3))
+        assertEquals(listOf(t, t, t, t, t, f, f), semana(bruno, sem3))
+        // Todo dia pelo menos um dos dois está trabalhando.
+        generateSequence(LocalDate.of(2026, 10, 1)) { it.plusDays(1) }.take(120).forEach {
+            assertTrue("ninguém em $it", nelson.trabalhaEm(it) || bruno.trabalhaEm(it))
+        }
     }
 }

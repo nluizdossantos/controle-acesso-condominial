@@ -44,6 +44,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.com.condominio.escala.data.AusenciaEntity
 import br.com.condominio.escala.data.EscalaEntity
 import br.com.condominio.escala.data.FuncionarioEntity
+import br.com.condominio.escala.data.paraDias
+import br.com.condominio.escala.data.paraMascara
 import br.com.condominio.escala.domain.CalculadoraEscala
 import br.com.condominio.escala.domain.MotivoAusencia
 import br.com.condominio.escala.domain.TipoEscala
@@ -53,12 +55,15 @@ import br.com.condominio.escala.ui.CampoHora
 import br.com.condominio.escala.ui.ConfirmarExclusao
 import br.com.condominio.escala.ui.EscalaViewModel
 import br.com.condominio.escala.ui.Seletor
+import br.com.condominio.escala.ui.SeletorDiasSemana
 import br.com.condominio.escala.ui.curta
 import br.com.condominio.escala.ui.emMinutos
 import br.com.condominio.escala.ui.formatada
 import br.com.condominio.escala.ui.horario
 import br.com.condominio.escala.ui.horasTxt
 import br.com.condominio.escala.ui.paraHora
+import br.com.condominio.escala.ui.texto
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -131,9 +136,12 @@ fun FuncionarioScreen(vm: EscalaViewModel, id: Long, aoExcluir: () -> Unit, modi
                         val vigencia = "Desde ${regra.inicio.formatada()}" +
                             (e.fimEpochDay?.let { " até ${LocalDate.ofEpochDay(it).formatada()}" } ?: "")
                         Text(vigencia, style = MaterialTheme.typography.bodySmall)
+                        regra.folgasSemana?.let {
+                            Text("Folgas: ${it.texto()}", style = MaterialTheme.typography.bodySmall)
+                        }
                         e.diaInversao?.let { dia ->
-                            val txt = e.deslocamentoInversao
-                                ?.let { "Folgas andam $it dia(s) todo dia $dia" }
+                            val txt = regra.folgasSemana?.let { "Troca para ${(regra.folgasSemanaVirada ?: it).texto()} todo dia $dia" }
+                                ?: e.deslocamentoInversao?.let { "Folgas andam $it dia(s) todo dia $dia" }
                                 ?: "Inverte trabalho/folga todo dia $dia"
                             Text(txt, style = MaterialTheme.typography.bodySmall)
                         }
@@ -200,6 +208,19 @@ fun FuncionarioScreen(vm: EscalaViewModel, id: Long, aoExcluir: () -> Unit, modi
     }
 }
 
+/** Folgas sugeridas para escalas semanais. */
+private fun folgasPadrao(tipo: TipoEscala): Set<DayOfWeek> = when (tipo) {
+    TipoEscala.SEIS_X_UM -> setOf(DayOfWeek.SUNDAY)
+    else -> setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)
+}
+
+/** Dias da semana em que uma escala cíclica de 7 dias já cadastrada folga. */
+private fun folgasDoCiclo(e: EscalaEntity): Set<DayOfWeek> {
+    if (e.diasTrabalho + e.diasFolga != 7) return folgasPadrao(TipoEscala.porNome(e.tipo))
+    val inicio = LocalDate.ofEpochDay(e.inicioEpochDay)
+    return (e.diasTrabalho until 7).map { inicio.plusDays(it.toLong()).dayOfWeek }.toSet()
+}
+
 /** Horários padrão sugeridos para cada tipo de escala. */
 private fun horarioPadrao(tipo: TipoEscala): Pair<LocalTime, LocalTime> = when (tipo) {
     TipoEscala.VINTE_QUATRO_X_QUARENTA_E_OITO -> LocalTime.of(7, 0) to LocalTime.of(7, 0)
@@ -227,6 +248,10 @@ private fun DialogoEscala(
     var deslocamento by remember {
         mutableStateOf((inicial?.deslocamentoInversao ?: inicial?.diasFolga ?: tipo.diasFolga).toString())
     }
+    var folgas by remember {
+        mutableStateOf(inicial?.folgasSemana?.paraDias() ?: inicial?.let { folgasDoCiclo(it) } ?: folgasPadrao(tipo))
+    }
+    var folgasVirada by remember { mutableStateOf(inicial?.folgasVirada?.paraDias() ?: folgas) }
 
     val diasTrab = trabalho.toIntOrNull()
     val diasFolga = folga.toIntOrNull()
@@ -238,9 +263,13 @@ private fun DialogoEscala(
     val inversaoSimples = permiteInversao && diasTrab == diasFolga
     val diaInv = diaInversao.toIntOrNull()?.takeIf { it in 1..28 }
     val desloc = deslocamento.toIntOrNull()?.takeIf { it in 1 until ciclo }
+    // Ciclo de 7 dias (5x2, 6x1): escolhe-se os dias de folga da semana.
+    val semanal = ciclo == 7 && !inversaoSimples
+    val folgasOk = !semanal || folgas.size == diasFolga
+    val viradaOk = !semanal || folgasVirada.size == diasFolga
     val valido = diasTrab != null && diasTrab >= 1 && diasFolga != null && diasFolga >= 0 &&
-        posto.isNotBlank() && (fimVigencia == null || !fimVigencia.isBefore(inicio)) &&
-        (!inverter || !permiteInversao || (diaInv != null && (inversaoSimples || desloc != null)))
+        posto.isNotBlank() && (fimVigencia == null || !fimVigencia.isBefore(inicio)) && folgasOk &&
+        (!inverter || !permiteInversao || (diaInv != null && (inversaoSimples || if (semanal) viradaOk else desloc != null)))
 
     AlertDialog(
         onDismissRequest = aoFechar,
@@ -253,6 +282,8 @@ private fun DialogoEscala(
                         trabalho = novo.diasTrabalho.toString()
                         folga = novo.diasFolga.toString()
                         deslocamento = novo.diasFolga.toString()
+                        folgas = folgasPadrao(novo)
+                        folgasVirada = folgas
                     }
                     horarioPadrao(novo).let { (a, b) -> horaInicio = a; horaFim = b }
                 }
@@ -280,10 +311,18 @@ private fun DialogoEscala(
                 CampoData("Primeiro dia de trabalho", inicio, { if (it != null) inicio = it })
                 CampoData("Fim da vigência", fim, { fim = it }, opcional = true)
                 OutlinedTextField(posto, { posto = it }, label = { Text("Posto / local") }, singleLine = true)
+                if (semanal) {
+                    Text("Dias de folga (escolha $diasFolga)", style = MaterialTheme.typography.labelLarge)
+                    SeletorDiasSemana(folgas) { folgas = it }
+                }
                 if (permiteInversao) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            if (inversaoSimples) "Inverter trabalho/folga todo mês" else "Mudar as folgas de lugar todo mês",
+                            when {
+                                inversaoSimples -> "Inverter trabalho/folga todo mês"
+                                semanal -> "Trocar os dias de folga todo mês"
+                                else -> "Mudar as folgas de lugar todo mês"
+                            },
                             modifier = Modifier.weight(1f),
                         )
                         Switch(checked = inverter, onCheckedChange = { inverter = it })
@@ -295,7 +334,10 @@ private fun DialogoEscala(
                             isError = diaInv == null,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         )
-                        if (!inversaoSimples) {
+                        if (semanal) {
+                            Text("Folgas depois da virada (escolha $diasFolga)", style = MaterialTheme.typography.labelLarge)
+                            SeletorDiasSemana(folgasVirada) { folgasVirada = it }
+                        } else if (!inversaoSimples) {
                             OutlinedTextField(
                                 deslocamento, { deslocamento = it.filter(Char::isDigit).take(2) },
                                 label = { Text("Folgas andam quantos dias (1 a ${ciclo - 1})") }, singleLine = true,
@@ -304,9 +346,14 @@ private fun DialogoEscala(
                             )
                         }
                         Text(
-                            if (inversaoSimples) "A partir desse dia, quem folgaria passa a trabalhar e vice-versa."
-                            else "A partir desse dia as folgas passam para os dias seguintes. " +
-                                "Atenção: na semana da virada pode haver mais dias de trabalho seguidos.",
+                            when {
+                                inversaoSimples -> "A partir desse dia, quem folgaria passa a trabalhar e vice-versa."
+                                semanal -> "Todo mês nesse dia as folgas alternam entre os dois grupos de dias. " +
+                                    "Para dois funcionários trocarem de escala, use as folgas de um como " +
+                                    "\"depois da virada\" do outro."
+                                else -> "A partir desse dia as folgas passam para os dias seguintes. " +
+                                    "Atenção: na semana da virada pode haver mais dias de trabalho seguidos."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -328,7 +375,9 @@ private fun DialogoEscala(
                         horaFimMin = horaFim.emMinutos(),
                         posto = posto.trim(),
                         diaInversao = if (inverter && permiteInversao) diaInv else null,
-                        deslocamentoInversao = if (inverter && permiteInversao && !inversaoSimples) desloc else null,
+                        deslocamentoInversao = if (inverter && permiteInversao && !inversaoSimples && !semanal) desloc else null,
+                        folgasSemana = if (semanal) folgas.paraMascara() else null,
+                        folgasVirada = if (semanal && inverter) folgasVirada.paraMascara() else null,
                     ),
                 )
                 aoFechar()

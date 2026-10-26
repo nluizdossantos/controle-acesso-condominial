@@ -1,5 +1,6 @@
 package br.com.condominio.escala.domain
 
+import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -44,6 +45,10 @@ enum class MotivoAusencia(val rotulo: String) {
  * Sem deslocamento informado, anda [diasTrabalho] dias, o que numa escala com trabalho e folga
  * do mesmo tamanho (12x36, 2x2) inverte os dias: quem folgaria passa a trabalhar e vice-versa.
  * Numa 5x2 com deslocamento 2, folgas de sáb/dom passam para seg/ter, depois qua/qui etc.
+ *
+ * Com [folgasSemana] definido a escala é semanal: o funcionário folga sempre nesses dias da
+ * semana. Se houver virada, a cada [diaInversao] as folgas alternam entre [folgasSemana] e
+ * [folgasSemanaVirada] — é assim que dois funcionários trocam de escala todo mês.
  */
 data class RegraEscala(
     val diasTrabalho: Int,
@@ -53,6 +58,8 @@ data class RegraEscala(
     val horaFim: LocalTime,
     val diaInversao: Int? = null,
     val deslocamentoInversao: Int? = null,
+    val folgasSemana: Set<DayOfWeek>? = null,
+    val folgasSemanaVirada: Set<DayOfWeek>? = null,
 ) {
     init {
         require(diasTrabalho >= 1) { "diasTrabalho deve ser >= 1" }
@@ -75,6 +82,10 @@ data class RegraEscala(
     fun trabalhaEm(data: LocalDate): Boolean {
         val dias = ChronoUnit.DAYS.between(inicio, data)
         if (dias < 0) return false
+        folgasSemana?.let { folgas ->
+            val atuais = if (inversoesAte(data) % 2 == 1L) folgasSemanaVirada ?: folgas else folgas
+            return data.dayOfWeek !in atuais
+        }
         val deslocamento = (deslocamentoInversao ?: diasTrabalho) * inversoesAte(data)
         return Math.floorMod(dias - deslocamento, ciclo.toLong()) < diasTrabalho
     }

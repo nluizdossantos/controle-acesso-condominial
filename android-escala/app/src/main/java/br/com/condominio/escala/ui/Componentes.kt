@@ -1,7 +1,10 @@
 package br.com.condominio.escala.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -15,6 +18,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MenuAnchorType
@@ -33,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
@@ -136,3 +141,25 @@ fun ConfirmarExclusao(mensagem: String, aoConfirmar: () -> Unit, aoCancelar: () 
     )
 }
 
+
+/** Dias da semana na ordem de calendário brasileiro (domingo primeiro). */
+private val semanaDomingo = listOf(DayOfWeek.SUNDAY) + DayOfWeek.entries.filter { it != DayOfWeek.SUNDAY }
+
+fun DayOfWeek.abrev(): String = getDisplayName(java.time.format.TextStyle.SHORT, LocalePtBr)
+    .removeSuffix(".").replaceFirstChar { it.uppercase() }
+
+fun Set<DayOfWeek>.texto(): String = semanaDomingo.filter { it in this }.joinToString(", ") { it.abrev().lowercase() }
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun SeletorDiasSemana(selecionados: Set<DayOfWeek>, aoMudar: (Set<DayOfWeek>) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        semanaDomingo.forEach { dia ->
+            FilterChip(
+                selected = dia in selecionados,
+                onClick = { aoMudar(if (dia in selecionados) selecionados - dia else selecionados + dia) },
+                label = { Text(dia.abrev()) },
+            )
+        }
+    }
+}
